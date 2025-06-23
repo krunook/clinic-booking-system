@@ -1,0 +1,679 @@
+
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจองคิวคลีนิกวัยว้าวุ่น</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        * {
+            font-family: 'Prompt', sans-serif;
+        }
+        
+        body {
+            background-color: #fdf2f8;
+            background-image: 
+                radial-gradient(#e879f9 0.5px, transparent 0.5px),
+                radial-gradient(#e879f9 0.5px, #fdf2f8 0.5px);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+        }
+        
+        .header-logo {
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(232, 121, 249, 0.2);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #f472b6 0%, #c084fc 100%);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(232, 121, 249, 0.4);
+        }
+        
+        .available {
+            background-color: #86efac;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .available:hover {
+            background-color: #4ade80;
+            transform: scale(1.05);
+        }
+        
+        .unavailable {
+            background-color: #fca5a5;
+            cursor: not-allowed;
+        }
+        
+        .time-slot {
+            border-radius: 8px;
+            padding: 8px;
+            margin: 4px;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        .selected {
+            outline: 3px solid #8b5cf6;
+            transform: scale(1.05);
+        }
+        
+        table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        
+        th, td {
+            padding: 10px;
+            border: 1px solid #e5e7eb;
+        }
+        
+        th {
+            background: linear-gradient(135deg, #f472b6 0%, #c084fc 100%);
+            color: white;
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #c084fc;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading" class="loading-overlay hidden">
+        <div class="spinner"></div>
+    </div>
+
+    <div class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="bg-white shadow-md py-4">
+            <div class="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between">
+                <div class="flex items-center mb-4 md:mb-0">
+                    <img src="https://i.postimg.cc/fRymYYQz/teen-logo.jpg" alt="คลีนิกวัยว้าวุ่น" class="header-logo w-16 h-16 rounded-full mr-4 shadow-lg">
+                    <div>
+                        <h1 class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">คลีนิกวัยว้าวุ่น</h1>
+                        <p class="text-gray-600 text-sm md:text-base">ระบบจองคิวออนไลน์</p>
+                    </div>
+                </div>
+                <div class="flex flex-col md:flex-row items-center">
+                    <div class="relative">
+                        <input type="date" id="datePicker" class="px-4 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400">
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-grow container mx-auto px-4 py-8">
+            <div id="queueView" class="card p-6 mb-8">
+                <h2 class="text-xl md:text-2xl font-semibold text-center mb-6 text-purple-700">ตารางการจองคิว</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full rounded-lg overflow-hidden">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-2">คาบเรียน</th>
+                                <th class="px-4 py-2">เวลา</th>
+                                <th class="px-4 py-2">ครูที่ปรึกษา</th>
+                                <th class="px-4 py-2">สถานะ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="queueTable">
+                            <!-- จะถูกเติมด้วย JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="flex justify-center mt-4 gap-4">
+                    <div class="flex items-center">
+                        <div class="w-4 h-4 bg-green-300 rounded mr-2"></div>
+                        <span class="text-sm">ว่าง</span>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="w-4 h-4 bg-red-300 rounded mr-2"></div>
+                        <span class="text-sm">ไม่ว่าง</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="bookingForm" class="card p-6 hidden">
+                <h2 class="text-xl md:text-2xl font-semibold text-center mb-6 text-purple-700">แบบฟอร์มจองคิว</h2>
+                <div class="mb-6 text-center">
+                    <p class="text-lg font-medium text-gray-700">วันที่: <span id="bookingDate" class="text-purple-600"></span></p>
+                    <p class="text-lg font-medium text-gray-700">คาบที่: <span id="bookingPeriod" class="text-purple-600"></span></p>
+                    <p class="text-lg font-medium text-gray-700">เวลา: <span id="bookingTime" class="text-purple-600"></span></p>
+                    <p class="text-lg font-medium text-gray-700">ครูที่ปรึกษา: <span id="bookingTeacher" class="text-purple-600"></span></p>
+                </div>
+                <form id="appointmentForm" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="studentId" class="block text-sm font-medium text-gray-700 mb-1">เลขประจำตัวนักเรียน <span class="text-red-500">*</span></label>
+                            <input type="text" id="studentId" name="studentId" required class="w-full px-4 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400">
+                        </div>
+                        <div>
+                            <label for="fullName" class="block text-sm font-medium text-gray-700 mb-1">ชื่อ-นามสกุล</label>
+                            <input type="text" id="fullName" name="fullName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+                        </div>
+                        <div>
+                            <label for="grade" class="block text-sm font-medium text-gray-700 mb-1">ระดับชั้น</label>
+                            <input type="text" id="grade" name="grade" required class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+                        </div>
+                        <div>
+                            <label for="room" class="block text-sm font-medium text-gray-700 mb-1">ห้อง</label>
+                            <input type="text" id="room" name="room" required class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">เบอร์โทรศัพท์ <span class="text-red-500">*</span></label>
+                            <input type="tel" id="phone" name="phone" required class="w-full px-4 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400">
+                        </div>
+                    </div>
+                    <div class="flex justify-center gap-4 pt-4">
+                        <button type="button" id="cancelBooking" class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition">ยกเลิก</button>
+                        <button type="submit" class="px-6 py-2 btn-primary text-white rounded-lg">ยืนยันการจอง</button>
+                    </div>
+                </form>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-white py-6 shadow-inner">
+            <div class="container mx-auto px-4 text-center">
+                <p class="text-gray-600 font-medium">งานแนะแนว</p>
+                <p class="text-gray-600 mb-3">งานระบบดูแลช่วยเหลือผู้เรียนโรงเรียนสวนศรีวิทยา</p>
+                <div class="mt-2 flex justify-center space-x-4">
+                    <span class="text-sm text-purple-500">© 2025 งานแนะแนว โรงเรียนสวนศรีวิทยา พัฒนาโดย ครูชวนันท์ ทัศนาภูมิ</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // ข้อมูลคาบเรียนและเวลา
+        const periodTimes = {
+            1: "08.10-09.05",
+            2: "09.05-10.00",
+            3: "10.00-10.55",
+            4: "10.55-11.50",
+            5: "11.50-12.45",
+            6: "12.45-13.40",
+            7: "13.40-14.35",
+            8: "14.35-15.30"
+        };
+
+        // ข้อมูลครูประจำคาบแต่ละวัน
+        const teacherSchedule = {
+            "จันทร์": {
+                1: ["พี่กิ๊ก", "ครูพรชนก"],
+                2: ["พี่กิ๊ก", "ครูคณิตา"],
+                3: ["พี่กิ๊ก", "ครูคณิตา"],
+                4: ["พี่กิ๊ก", "ครูพรชนก", "ครูคณิตา", "YCนนท์", "YCชะเอม", "YCมะปราง", "YCน้ำหวาน"],
+                5: ["พี่กิ๊ก", "YCเมฆ", "YCชวัญข้าว"],
+                6: ["พี่กิ๊ก", "ครูพรชนก", "YCมีน"],
+                7: ["พี่กิ๊ก", "ครูพรชนก"],
+                8: ["พี่กิ๊ก"]
+            },
+            "อังคาร": {
+                1: ["พี่กิ๊ก", "ครูพรชนก"],
+                2: ["พี่กิ๊ก", "ครูพรชนก", "YC ขวัญข้าว"],
+                3: ["พี่กิ๊ก"],
+                4: ["พี่กิ๊ก", "ครูพรชนก", "ครูคณิตา", "YCเมฆ", "YCมีน", "YCต้นกล้า"],
+                5: ["พี่กิ๊ก", "YCเฟิร์ส", "YCเมฆ"],
+                6: ["พี่กิ๊ก", "ครูคณิตา", "YCเอฟ", "YCคาบิว"],
+                7: ["พี่กิ๊ก", "ครูคณิตา"],
+                8: ["พี่กิ๊ก", "ครูพรชนก"]
+            },
+            "พุธ": {
+                1: ["พี่กิ๊ก", "ครูคณิตา"],
+                2: ["พี่กิ๊ก", "ครูพรชนก", "ครูคณิตา"],
+                3: ["พี่กิ๊ก", "ครูพรชนก", "ครูคณิตา"],
+                4: ["พี่กิ๊ก", "ครูคณิตา", "YCเมฆ", "YCมีน", "YCนาเดียร์"],
+                5: ["พี่กิ๊ก", "ครูพรชนก", "YCต้นกล้า", "YCคาบิว"],
+                6: ["พี่กิ๊ก", "ครูพรชนก", "YCต้นกล้า"],
+                7: ["พี่กิ๊ก"],
+                8: ["พี่กิ๊ก"]
+            },
+            "พฤหัสบดี": {
+                1: ["พี่กิ๊ก", "ครูคณิตา"],
+                2: ["พี่กิ๊ก", "ครูพรชนก"],
+                3: ["พี่กิ๊ก", "ครูพรชนก"],
+                4: ["พี่กิ๊ก", "ครูพรชนก", "YCชะเอม", "YCมะปราง", "YCน้ำหวาน"],
+                5: ["พี่กิ๊ก", "YCเฟิร์ส", "YCเมฆ"],
+                6: ["พี่กิ๊ก"],
+                7: ["พี่กิ๊ก"],
+                8: ["พี่กิ๊ก"]
+            },
+            "ศุกร์": {
+                1: ["พี่กิ๊ก", "ครูพรชนก"],
+                2: ["พี่กิ๊ก", "ครูพรชนก"],
+                3: ["พี่กิ๊ก", "ครูพรชนก"],
+                4: ["พี่กิ๊ก", "ครูพรชนก", "YCเอฟ"],
+                5: ["พี่กิ๊ก", "ครูพรชนก", "YCขวัญข้าว", "YCมัดหมี่", "YCเมฆ", "YCมีน"],
+                6: ["พี่กิ๊ก", "ครูพรชนก", "YCขวัญข้าว"],
+                7: ["พี่กิ๊ก", "ครูคณิตา"],
+                8: ["พี่กิ๊ก", "ครูคณิตา"]
+            }
+        };
+
+        // API URL
+        const API_URL = "https://script.google.com/macros/s/AKfycbzRvdNIJZoYKTp231NtYzZlEmHc-hyJkN5ilwDuJc-4LZTqjyHqRPfs-GucdFYpDB4yxg/exec";
+        
+        // DOM Elements
+        const datePicker = document.getElementById('datePicker');
+        const queueTable = document.getElementById('queueTable');
+        const queueView = document.getElementById('queueView');
+        const bookingForm = document.getElementById('bookingForm');
+        const appointmentForm = document.getElementById('appointmentForm');
+        const cancelBooking = document.getElementById('cancelBooking');
+        const loading = document.getElementById('loading');
+        const studentIdInput = document.getElementById('studentId');
+        const fullNameInput = document.getElementById('fullName');
+        const gradeInput = document.getElementById('grade');
+        const roomInput = document.getElementById('room');
+        
+        // ตัวแปรสำหรับเก็บข้อมูลการจอง
+        let selectedDate = '';
+        let selectedPeriod = '';
+        let bookedSlots = [];
+        
+        // ฟังก์ชันแสดง loading
+        function showLoading() {
+            loading.classList.remove('hidden');
+        }
+        
+        // ฟังก์ชันซ่อน loading
+        function hideLoading() {
+            loading.classList.add('hidden');
+        }
+        
+        // ฟังก์ชันแปลงวันที่เป็นรูปแบบ dd/mm/yyyy
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+        }
+        
+        // ฟังก์ชันแปลงวันที่เป็นชื่อวัน (ภาษาไทย)
+        function getDayName(dateString) {
+            const date = new Date(dateString);
+            const days = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+            return days[date.getDay()];
+        }
+        
+        // ฟังก์ชันตรวจสอบว่าวันที่เลือกเป็นวันทำการหรือไม่ (จันทร์-ศุกร์)
+        function isWorkingDay(dateString) {
+            const date = new Date(dateString);
+            const day = date.getDay();
+            return day >= 1 && day <= 5; // 1=จันทร์, 5=ศุกร์
+        }
+        
+        // ฟังก์ชันตรวจสอบว่าวันที่เลือกอยู่ในช่วงที่อนุญาตหรือไม่ (ไม่เกิน 3 เดือน)
+        function isWithinAllowedRange(dateString) {
+            const selectedDate = new Date(dateString);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            // ตรวจสอบว่าไม่ใช่วันในอดีต
+            if (selectedDate < today) {
+                return false;
+            }
+            
+            // ตรวจสอบว่าไม่เกิน 3 เดือนในอนาคต
+            const threeMonthsLater = new Date();
+            threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
+            threeMonthsLater.setHours(0, 0, 0, 0);
+            
+            return selectedDate <= threeMonthsLater;
+        }
+        
+        // ฟังก์ชันดึงข้อมูลการจองจาก Google Sheet
+        async function fetchBookings(date) {
+            showLoading();
+            try {
+                const formattedDate = formatDate(date);
+                console.log(`Fetching bookings for date: ${formattedDate}`);
+                
+                const response = await fetch(`${API_URL}?action=getBookings&date=${formattedDate}`);
+                const data = await response.json();
+                
+                console.log("API Response:", data);
+                
+                hideLoading();
+                
+                if (data.success) {
+                    // แปลงข้อมูลทุกอย่างเป็น string เพื่อให้เปรียบเทียบได้ถูกต้อง
+                    const bookings = data.bookings.map(booking => ({
+                        date: String(booking.date).trim(),
+                        period: String(booking.period).trim()
+                    }));
+                    
+                    console.log("Processed bookings:", bookings);
+                    return bookings;
+                } else {
+                    console.error("API returned error:", data.message);
+                    return [];
+                }
+            } catch (error) {
+                console.error('Error fetching bookings:', error);
+                hideLoading();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เกิดข้อผิดพลาด',
+                    text: 'ไม่สามารถดึงข้อมูลการจองได้ กรุณาลองใหม่อีกครั้ง',
+                });
+                return [];
+            }
+        }
+        
+        // ฟังก์ชันดึงข้อมูลนักเรียนจาก Google Sheet
+        async function fetchStudentInfo(studentId) {
+            showLoading();
+            try {
+                const response = await fetch(`${API_URL}?action=getStudentInfo&studentId=${studentId}`);
+                const data = await response.json();
+                console.log("Student API Response:", data);
+                hideLoading();
+                return data;
+            } catch (error) {
+                console.error('Error fetching student info:', error);
+                hideLoading();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เกิดข้อผิดพลาด',
+                    text: 'ไม่สามารถดึงข้อมูลนักเรียนได้ กรุณาลองใหม่อีกครั้ง',
+                });
+                return { success: false };
+            }
+        }
+        
+        // ฟังก์ชันแสดงตารางคิว
+        async function displayQueue(date) {
+            if (!date) return;
+            
+            selectedDate = date;
+            const dayName = getDayName(date);
+            
+            // ตรวจสอบว่าเป็นวันทำการหรือไม่
+            if (!isWorkingDay(date)) {
+                queueTable.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center py-8 text-red-500">
+                            <p class="text-lg font-medium">ไม่สามารถจองคิวในวันหยุดได้</p>
+                            <p class="text-sm">กรุณาเลือกวันจันทร์ถึงศุกร์</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            // ตรวจสอบว่าอยู่ในช่วงที่อนุญาตหรือไม่
+            if (!isWithinAllowedRange(date)) {
+                queueTable.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center py-8 text-red-500">
+                            <p class="text-lg font-medium">ไม่สามารถจองคิวในช่วงเวลานี้ได้</p>
+                            <p class="text-sm">กรุณาเลือกวันที่ไม่เกิน 3 เดือนในอนาคต และไม่ใช่วันในอดีต</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            // ดึงข้อมูลการจอง
+            bookedSlots = await fetchBookings(date);
+            console.log("Booked slots:", bookedSlots);
+            
+            // สร้างตารางคิว
+            let tableHTML = '';
+            
+            for (let period = 1; period <= 8; period++) {
+                const teachers = teacherSchedule[dayName][period] || [];
+                const teachersText = teachers.join(', ');
+                const time = periodTimes[period];
+                
+                // ตรวจสอบว่าคาบนี้มีการจองแล้วหรือไม่
+                const periodStr = String(period);
+                const isBooked = bookedSlots.some(booking => String(booking.period).trim() === periodStr);
+                
+                console.log(`Period ${period}: isBooked = ${isBooked}`);
+                
+                const statusClass = isBooked ? 'unavailable' : 'available';
+                const statusText = isBooked ? 'ไม่ว่าง' : 'ว่าง';
+                
+                tableHTML += `
+                    <tr>
+                        <td class="text-center">${period}</td>
+                        <td>${time}</td>
+                        <td>${teachersText}</td>
+                        <td>
+                            <div class="time-slot ${statusClass}" data-period="${period}" data-time="${time}" data-teachers="${teachersText}">
+                                ${statusText}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+            
+            queueTable.innerHTML = tableHTML;
+            
+            // เพิ่ม event listener สำหรับการคลิกที่คาบว่าง
+            document.querySelectorAll('.available').forEach(slot => {
+                slot.addEventListener('click', () => {
+                    const period = slot.getAttribute('data-period');
+                    const time = slot.getAttribute('data-time');
+                    const teachers = slot.getAttribute('data-teachers');
+                    showBookingForm(period, time, teachers);
+                });
+            });
+        }
+        
+        // ฟังก์ชันแสดงฟอร์มการจอง
+        function showBookingForm(period, time, teachers) {
+            selectedPeriod = period;
+            
+            // แสดงข้อมูลการจอง
+            document.getElementById('bookingDate').textContent = `${formatDate(selectedDate)} (${getDayName(selectedDate)})`;
+            document.getElementById('bookingPeriod').textContent = period;
+            document.getElementById('bookingTime').textContent = time;
+            document.getElementById('bookingTeacher').textContent = teachers;
+            
+            // รีเซ็ตฟอร์ม
+            appointmentForm.reset();
+            fullNameInput.value = '';
+            gradeInput.value = '';
+            roomInput.value = '';
+            
+            // แสดงฟอร์มการจอง
+            queueView.classList.add('hidden');
+            bookingForm.classList.remove('hidden');
+        }
+        
+        // ฟังก์ชันส่งข้อมูลการจอง
+        async function submitBooking(formData) {
+            showLoading();
+            
+            try {
+                const bookingData = {
+                    date: formatDate(selectedDate),
+                    period: String(selectedPeriod),
+                    studentId: String(formData.get('studentId')),
+                    fullName: String(formData.get('fullName')),
+                    grade: String(formData.get('grade')),
+                    room: String(formData.get('room')),
+                    phone: String(formData.get('phone'))
+                };
+                
+                console.log("Submitting booking data:", bookingData);
+                
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'bookAppointment',
+                        data: bookingData
+                    })
+                });
+                
+                const result = await response.json();
+                console.log("Booking result:", result);
+                
+                hideLoading();
+                
+                if (result.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'จองคิวสำเร็จ',
+                        text: `รหัสการจอง: ${result.bookingId}`,
+                        confirmButtonText: 'ตกลง'
+                    }).then(() => {
+                        // กลับไปที่หน้าแสดงคิว
+                        bookingForm.classList.add('hidden');
+                        queueView.classList.remove('hidden');
+                        
+                        // รีเซ็ตฟอร์ม
+                        appointmentForm.reset();
+                        
+                        // โหลดข้อมูลคิวใหม่
+                        displayQueue(selectedDate);
+                    });
+                } else {
+                    throw new Error(result.message || 'เกิดข้อผิดพลาดในการจองคิว');
+                }
+            } catch (error) {
+                hideLoading();
+                console.error('Error submitting booking:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เกิดข้อผิดพลาด',
+                    text: error.message || 'ไม่สามารถจองคิวได้ กรุณาลองใหม่อีกครั้ง',
+                });
+            }
+        }
+        
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            // ตั้งค่าวันที่เริ่มต้นเป็นวันปัจจุบัน
+            const today = new Date();
+            const formattedToday = today.toISOString().split('T')[0];
+            datePicker.value = formattedToday;
+            datePicker.min = formattedToday;
+            
+            // ตั้งค่าวันที่สูงสุดเป็น 3 เดือนในอนาคต
+            const threeMonthsLater = new Date();
+            threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
+            const formattedThreeMonthsLater = threeMonthsLater.toISOString().split('T')[0];
+            datePicker.max = formattedThreeMonthsLater;
+            
+            // แสดงตารางคิวเริ่มต้น
+            displayQueue(formattedToday);
+            
+            // Event listener สำหรับการเปลี่ยนวันที่
+            datePicker.addEventListener('change', (e) => {
+                displayQueue(e.target.value);
+            });
+            
+            // Event listener สำหรับการยกเลิกการจอง
+            cancelBooking.addEventListener('click', () => {
+                bookingForm.classList.add('hidden');
+                queueView.classList.remove('hidden');
+            });
+            
+            // Event listener สำหรับการส่งฟอร์มการจอง
+            appointmentForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const formData = new FormData(appointmentForm);
+                submitBooking(formData);
+            });
+            
+            // Event listener สำหรับการกรอกรหัสนักเรียน
+            studentIdInput.addEventListener('blur', async () => {
+                const studentId = studentIdInput.value.trim();
+                if (studentId) {
+                    try {
+                        const result = await fetchStudentInfo(studentId);
+                        console.log("Student info result:", result);
+                        
+                        if (result.success && result.student) {
+                            fullNameInput.value = result.student.name || '';
+                            gradeInput.value = result.student.grade || '';
+                            roomInput.value = result.student.room || '';
+                            
+                            // แสดงข้อความแจ้งเตือนว่าดึงข้อมูลสำเร็จ
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'ดึงข้อมูลสำเร็จ',
+                                text: 'พบข้อมูลนักเรียนในระบบ',
+                                timer: 1500,
+                                showConfirmButton: false
+                            });
+                        } else {
+                            // ถ้าไม่พบข้อมูลนักเรียน ให้ล้างข้อมูลและแจ้งเตือน
+                            fullNameInput.value = '';
+                            gradeInput.value = '';
+                            roomInput.value = '';
+                            
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'ไม่พบข้อมูลนักเรียน',
+                                text: result.message || 'กรุณาตรวจสอบรหัสนักเรียนอีกครั้ง',
+                            });
+                        }
+                    } catch (error) {
+                        console.error("Error in student info fetch:", error);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'เกิดข้อผิดพลาด',
+                            text: 'ไม่สามารถดึงข้อมูลนักเรียนได้ กรุณาลองใหม่อีกครั้ง',
+                        });
+                    }
+                }
+            });
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'953cbc2d67be7323',t:'MTc1MDYwNTY4My4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
